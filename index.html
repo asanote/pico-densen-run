@@ -56,6 +56,15 @@ kbd{font-family:inherit;border:1px solid var(--edge);border-bottom-width:2px;bor
   .pad{position:absolute;left:0;right:0;bottom:10px;padding-inline:10px;pointer-events:none}
   .pad .key{pointer-events:auto;opacity:.6}
 }
+/* PC: the game screen fills the browser window (5:3 kept); help text sits below the fold */
+@media (hover:hover) and (pointer:fine){
+  .wrap{max-width:none;padding-block:8px 24px}
+  .stage{height:calc(100dvh - var(--top-h,48px) - 28px);min-height:240px;container-type:size}
+  .screen{width:min(100cqw,calc(100cqh * 5 / 3))}
+}
+@media (hover:none),(pointer:coarse){ #fsBtn{display:none} }
+.screen:fullscreen{width:100vw;height:100vh;max-width:none;aspect-ratio:auto;border:0;border-radius:0;box-shadow:none;background:#000;display:flex;align-items:center;justify-content:center}
+.screen:fullscreen canvas{width:min(100vw,calc(100vh * 5 / 3));height:auto;aspect-ratio:5/3}
 </style>
 
 <div class="wrap">
@@ -65,6 +74,7 @@ kbd{font-family:inherit;border:1px solid var(--edge);border-bottom-width:2px;bor
       <button class="tool" id="bgmBtn" type="button" aria-pressed="true">BGM：オン</button>
       <button class="tool" id="sfxBtn" type="button" aria-pressed="true">効果音：オン</button>
       <button class="tool" id="pauseBtn" type="button">一時停止</button>
+      <button class="tool" id="fsBtn" type="button" title="F キーでも切り替え">全画面</button>
     </div>
   </div>
   <div class="stage">
@@ -85,6 +95,7 @@ kbd{font-family:inherit;border:1px solid var(--edge);border-bottom-width:2px;bor
     <li><kbd>Z</kbd> / <kbd>Space</kbd> ジャンプ（長押しで高く）</li>
     <li><kbd>X</kbd> / <kbd>Shift</kbd> ダッシュ、ギガは放電</li>
     <li><kbd>P</kbd> 一時停止</li>
+    <li><kbd>F</kbd> 全画面（<kbd>Esc</kbd> でもどる）</li>
     <li>Xboxコントローラー：スティック/十字キー 移動、<kbd>A</kbd> ジャンプ、<kbd>X</kbd>/<kbd>B</kbd> ダッシュ・放電、メニューボタン 一時停止</li>
     <li>Switchコントローラー：スティック/十字キー 移動、<kbd>A</kbd>/<kbd>B</kbd> ジャンプ、<kbd>X</kbd>/<kbd>Y</kbd> ダッシュ・放電、<kbd>+</kbd>/<kbd>−</kbd> 一時停止</li>
   </ul>
@@ -102,10 +113,28 @@ const cvs=document.getElementById('game');
 const ctx=cvs.getContext('2d');
 const W=400,H=240,T=16,ROWS=15;
 let COLS=212,GOALX=202,CHECK_TX=100;
-cvs.width=W*2; cvs.height=H*2;
+/* backing store follows the on-screen size (integer scale) so text and pixels stay sharp when the screen is large */
+let SC=2;
+cvs.width=W*SC; cvs.height=H*SC;
 const reduceMotion=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
-function resetTransform(){ctx.setTransform(2,0,0,2,0,0);ctx.imageSmoothingEnabled=false;}
+function resetTransform(){ctx.setTransform(SC,0,0,SC,0,0);ctx.imageSmoothingEnabled=false;}
 resetTransform();
+function fitCanvas(){
+  const top=document.querySelector('.top');
+  if(top)document.documentElement.style.setProperty('--top-h',top.offsetHeight+'px');
+  const r=cvs.getBoundingClientRect(),s=Math.max(2,Math.min(8,Math.ceil(r.width*(window.devicePixelRatio||1)/W)));
+  if(s!==SC){SC=s;cvs.width=W*SC;cvs.height=H*SC;resetTransform();}
+}
+window.addEventListener('resize',fitCanvas);
+if(window.ResizeObserver)new ResizeObserver(fitCanvas).observe(cvs);
+const fsBtn=document.getElementById('fsBtn'),fsTarget=document.querySelector('.screen');
+function toggleFullscreen(){
+  try{if(document.fullscreenElement)document.exitFullscreen();else{const p=fsTarget.requestFullscreen();if(p&&p.catch)p.catch(()=>{});}}catch(e){}
+}
+if(!document.fullscreenEnabled||!fsTarget.requestFullscreen)fsBtn.hidden=true;
+fsBtn.addEventListener('click',toggleFullscreen);
+document.addEventListener('fullscreenchange',()=>{fsBtn.textContent=document.fullscreenElement?'全画面を終了':'全画面';fitCanvas();});
+fitCanvas();
 
 /* ---------- pixel helpers ---------- */
 function makeCanvas(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c;}
@@ -550,6 +579,7 @@ function isNintendo(g){return /057e|nintendo|pro controller|joy-con/i.test(g.id|
 window.addEventListener('gamepadconnected',e=>{const nin=!!(e&&e.gamepad&&isNintendo(e.gamepad));banner={text:(nin?'Switchの':'')+'コントローラーを接続しました',t:120};});
 const KEYMAP={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'jump',KeyW:'jump',Space:'jump',KeyZ:'jump',KeyK:'jump',KeyX:'b',KeyJ:'b',ShiftLeft:'b',ShiftRight:'b',Enter:'start',KeyP:'pause',Escape:'pause'};
 window.addEventListener('keydown',e=>{
+  if(e.code==='KeyF'&&!e.repeat&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!fsBtn.hidden){e.preventDefault();toggleFullscreen();return;}
   const k=KEYMAP[e.code];if(!k)return;
   if(e.target&&e.target.tagName==='BUTTON'&&(e.code==='Space'||e.code==='Enter'))return;
   e.preventDefault();ensureAudio();
