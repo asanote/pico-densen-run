@@ -1,5 +1,6 @@
 <!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
 <title>ピコの電線ラン</title>
+<script data-goatcounter="https://asanote.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
@@ -48,6 +49,7 @@ kbd{font-family:inherit;border:1px solid var(--edge);border-bottom-width:2px;bor
 .forms{display:flex;flex-wrap:wrap;gap:8px 20px;margin:0;padding:10px 14px;list-style:none;border:2px solid var(--edge);border-radius:8px;background:var(--panel);font-size:.85rem;line-height:1.6}
 .forms b{color:var(--spark);font-weight:400}
 .forms span{color:var(--dim)}
+.note{margin:0;color:var(--dim);font-size:.75rem;line-height:1.6}
 @media (hover:none),(pointer:coarse){ .pad{display:flex} .hint{display:none} }
 @media (pointer:coarse) and (orientation:landscape) and (max-height:520px){
   .wrap{padding-block:4px;max-width:none}
@@ -104,6 +106,7 @@ kbd{font-family:inherit;border:1px solid var(--edge);border-bottom-width:2px;bor
     <li><b>メガ</b> <span>電池で進化。レンガを壊せる</span></li>
     <li><b>ギガ</b> <span>雷コアで進化。Bで放電</span></li>
   </ul>
+  <p class="note">遊ばれた回数を知るためにアクセス解析（GoatCounter）を使っています。Cookieは使わず、個人を特定する情報は集めません。</p>
 </div>
 
 <script>
@@ -604,16 +607,19 @@ pauseBtn.addEventListener('click',()=>togglePause());
 function togglePause(){if(state!=='play'){paused=false;}else{paused=!paused;holdMusic(paused);}pauseBtn.textContent=paused?'再開':'一時停止';}
 document.addEventListener('visibilitychange',()=>{if(document.hidden){if(state==='play'&&!paused)togglePause();else holdMusic(true);}else if(!paused)holdMusic(false);});
 
+/* ---------- アクセス解析（GoatCounter）: ステージ開始・ボス戦・クリア・ゲームオーバーの回数だけを数える ---------- */
+function track(path,title){try{if(window.goatcounter&&window.goatcounter.count)window.goatcounter.count({path:'pico-'+path,title,event:true});}catch(e){}}
+
 /* ---------- flow ---------- */
 function prepTitle(){loadStage(selStage);buildLevel(3);resetPlayer(3,0);camX=0;}
 function toTitle(){saveBest();state='title';titleT=0;paused=false;pauseBtn.textContent='一時停止';selStage=Math.min(selStage,unlocked-1);prepTitle();playMusic('title');}
-function newGame(){game=freshGame(selStage);startLife();}
+function newGame(){game=freshGame(selStage);startLife();track('start-'+LEVEL.id,'ステージ開始：'+LEVEL.id+' '+LEVEL.name);}
 function startLife(){loadStage(game.stage);const tx=game.checkpoint?CHECK_TX:3;buildLevel(tx);resetPlayer(tx,game.form);game.time=300;game.timeAcc=0;game.combo=0;game.hurried=false;banner=null;state='ready';readyT=0;stopMusic();}
-function loseLife(){game.lives--;if(game.lives<=0){state='gameover';goT=0;selStage=game.stage;saveBest();sfx.over();}else startLife();}
+function loseLife(){game.lives--;if(game.lives<=0){state='gameover';goT=0;selStage=game.stage;saveBest();sfx.over();track('gameover-'+LEVEL.id,'ゲームオーバー：'+LEVEL.id+' '+LEVEL.name);}else startLife();}
 function nextStage(){
   unlocked=Math.max(unlocked,Math.min(LEVELS.length,game.stage+2));saveBest();
-  if(game.stage+1<LEVELS.length){game.stage++;game.checkpoint=false;startLife();}
-  else{state='ending';endT=0;playMusic('title');}
+  if(game.stage+1<LEVELS.length){game.stage++;game.checkpoint=false;startLife();track('start-'+LEVEL.id,'ステージ開始：'+LEVEL.id+' '+LEVEL.name);}
+  else{state='ending';endT=0;playMusic('title');track('allclear','オールクリア');}
 }
 
 function step(){
@@ -664,6 +670,7 @@ function updatePlay(){
   if((!LEVEL.boss||arena.poleT*3>=POLE_SPAN)&&P.x+P.w>=poleX&&P.y<13*T){
     state='clear';clearPhase=0;phaseT=0;clearDone=false;P.x=poleX-P.w;P.vx=0;P.vy=0;game.form=P.form;
     if(LEVEL.boss)openBossGate();
+    track('clear-'+LEVEL.id,'クリア：'+LEVEL.id+' '+LEVEL.name);
     const h=13*T-(P.y+P.h);const bonus=h>=128?5000:h>=96?2000:h>=64?800:h>=32?400:100;
     addScore(bonus,poleX-6,P.y-10);stopMusic();sfx.clear();return;
   }
@@ -780,6 +787,7 @@ function startBossFight(){
   boss={cfg:c,x:(a+19)*T,y:-50,w:BOSS_W,h:BOSS_H,vx:0,vy:0,dir:-1,onGround:false,phase:'intro',t:0,hp:BOSS_HP,inv:0,anim:0,spin:0,landed:false,air:false,angry:false,rollsLeft:0};
   stopMusic();playMusic('boss');if(game.hurried)MUSIC.tempo=1.3;
   banner={text:c.name+'があらわれた！',t:150};
+  track('boss-'+LEVEL.id,'ボス戦：'+LEVEL.id+' '+c.name);
 }
 function bossBox(w,h){
   const b=boss,a=b.cfg.ax,cx=b.x+b.w/2,bot=b.y+b.h;

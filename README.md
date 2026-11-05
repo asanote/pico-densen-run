@@ -40,5 +40,6 @@
 
 - 元の Artifact: https://claude.ai/artifact/1mC5Ev9nuTuEREogVQ6BMx
 - ハイスコアと解放済みステージはブラウザの localStorage に保存します。
+- アクセス解析に GoatCounter（https://asanote.goatcounter.com/ 、ぶんすうモンスターと共通）を使っています。ページの表示に加えて、`pico-start-1-1`（ステージ開始）・`pico-boss-1-1`（ボス戦）・`pico-clear-1-1`（クリア）・`pico-gameover-1-1`（ゲームオーバー）・`pico-allclear`（オールクリア）をイベントとして数えます。Cookie は使わず、個人を特定する情報は送りません。
 
 ローカルで遊ぶときは `index.html` をブラウザで開くだけで動きます。
